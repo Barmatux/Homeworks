@@ -7,19 +7,30 @@ operators['/'] = operator.truediv
 operators['+'] = operator.add
 operators['-'] = operator.sub
 
-def find_close_bracket(deque_of_token: deque):
-    deq = deque_of_token
-    item = deq.popleft()
-    while item != ')':
-        if item == '(':
-            item = deq.popleft()
-            find_close_bracket(deq)
-        else:
-            item = deq.popleft()
-    return deq
+def evaluate_in_bracket(deque_of_token: list):
+    for i in deque_of_token:
+        if i == '(':
+            slc_deq = deque_of_token[deque_of_token.index(i)+1:]
+            a = find_close_bracket(slc_deq)
+            # index = a + len(deque_of_token[:deque_of_token.index(i)+1])
+            slice_deq = slice(deque_of_token.index(i)+1, index)
+            b = count_operators(deque_of_token[slice_deq])
+            deque_of_token[deque_of_token.index(i): index+1] = b
+            return count_operators(deque_of_token)
+    return None
 
 
-def count(deque_of_token: list):
+def find_close_bracket(slice_deque: list):
+    for i in slice_deque:
+        if i == ')':
+            return slice_deque.index(i)
+        elif i == '(':
+             evaluate_in_bracket(slice_deque[slice_deque.index(i)+1:])
+    return None
+
+
+
+def count_operators(deque_of_token: list):
     for i in operators:
         if i in deque_of_token:
             op_slice = slice(deque_of_token.index(i)-1, deque_of_token.index(i)+2)
@@ -34,5 +45,5 @@ def count(deque_of_token: list):
 
 
 if __name__ == '__main__':
-    a = count([4, '+', 5, '-', 3, '*', 2])
+    a = evaluate_in_bracket([4, '+', '(', 5, '-', 3,')', '*', '(', 2, '-', 1, ')'])
     print(a)
