@@ -1,6 +1,9 @@
 import re
 from operator import add, sub, mul, truediv, mod, le, lt, eq
 from numbers import Number
+import math
+
+global token, gen
 
 
 def expression(rbp=0):
@@ -33,10 +36,9 @@ class symbol_base:
         return "(" + " ".join(out) + ")"
 
 
+symbol_table = {}
 
-symbol_table={}
-
-operator_table = {'+': add, '-': sub, '*': mul, '/': truediv, '%': mod, '^' : pow, '>': lt, '<': le}
+operator_table = {'+': add, '-': sub, '*': mul, '/': truediv, '%': mod, '^' : pow, '>': lt, '<': le, '=': eq}
 
 
 def symbol(id, bp=0):
@@ -77,8 +79,12 @@ def infix(id, bp):
 
 def prefix(id, bp):
     def nud(self):
+        if self.id == 'func':
+            x = getattr(math, self.value)
+            return x(float(expression(bp).value))
         a = expression(bp)
-        a = float(a.value)
+        if not isinstance(a, float):
+            a = float(a.value)
         if id == '+':
             return a
         elif id == '-':
@@ -91,6 +97,7 @@ def nud(self):
     advance(")")
     return expr
 symbol("(").nud = nud
+
 
 def advance(id=None):
     global token
@@ -106,6 +113,7 @@ infix("/", 20)
 infix("^", 30)
 prefix("+", 100)
 prefix("-", 100)
+prefix('func', 200)
 
 symbol("(literal)").nud = lambda self: self
 symbol("(end)")
@@ -113,17 +121,23 @@ symbol('(', 150)
 symbol(')')
 infix("<", 5); infix("<=", 5)
 infix(">", 5); infix(">=", 5)
-infix("<>", 5); infix("!=", 5); infix("==", 5)
+infix("<>", 5); infix("!=", 5); infix("=", 5)
 
-token_pat = re.compile("\s*(?:(\d+)|(.))")
+token_pat = re.compile("(?:(\d+)|(\w+)|(\*\*|.))")
+
 
 def tokenize(program):
-    for number, operator in token_pat.findall(program):
+    for number, func, operator in token_pat.findall(program):
         if number:
             symbol = symbol_table['(literal)']
             s = symbol()
             s.value = number
             yield s
+        elif func:
+            symbol = symbol_table['func']
+            d = symbol()
+            d.value = func
+            yield d
         else:
             symbol = symbol_table.get(operator)
             if not symbol:
@@ -141,4 +155,4 @@ def parse(program):
 
 
 if __name__=='__main__':
-    print(parse('+2'))
+    print(parse('abs(-2)'))
