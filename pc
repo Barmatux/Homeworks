@@ -1,0 +1,138 @@
+from symbol_classes import base_symbol
+from const_and_paterns import token_pattern, symbol_table, operator_table
+from numbers import Number
+import math
+import argparse
+
+
+global token, gen
+
+parser = argparse.ArgumentParser()
+parser.add_argument('test', nargs='+')
+
+
+def expression(rbp=0):
+    """ Main function that count result of expression"""
+    global token, gen
+    t = token
+    token = next(gen)
+    left = t.nud()
+    while rbp < token.lbp:
+        t = token
+        token = next(gen)
+        if isinstance(left, Number) or left is None:
+            left = t.led(left)
+        else:
+            left = t.led(float(left.value))
+    return left
+
+
+def infix(id, bp):
+    """ reg operator, call class creation and make rule how to count it"""
+    def count_left(oper, left):
+        a = expression(bp)
+        if isinstance(a, Number) and (left, Number):
+            return operator_table[id](left, a)
+        else:
+            a = float(a.value)
+            return operator_table[id](left, a)
+
+    make_symbol(id, bp).led = count_left
+
+
+def prefix(id, bp):
+    def count(exp):
+        if id == 'func':
+            x = getattr(math, exp.value)
+            return x(expression(bp))
+        a = expression(bp)
+        if not isinstance(a, Number):
+            a = float(a.value)
+        if id == '+':
+            return a
+        elif id == '-':
+            return -a
+    make_symbol(id).nud = count
+
+
+def make_symbol(id, bp=0):
+    """Create new class  object from given id and bp from symbol table,
+    where we have registrated all symbols or create new, and registrate it"""
+    try:
+        s = symbol_table[id]
+    except KeyError:
+        class s(base_symbol):
+            pass
+        s.id = id
+        s.lbp = bp
+        symbol_table[id] = s
+    else:
+        s.lbp = max(bp, s.lbp)
+    return s
+
+
+def nud(self):
+    """ rule for bracket"""
+    expr = expression()
+    advance(")")
+    return expr
+make_symbol("(").nud = nud
+
+
+def advance(id=None):
+    """ check if we have close bracket, raise exception if no"""
+    global token
+    if id and token.id != id:
+        raise SyntaxError(f"Expected {id}")
+    token = next(gen)
+
+
+def tokenize(inpt: str):
+    """Tokenize our input string and make token one  of the given type"""
+    for flt, integ,  func, operator in token_pattern.findall(inpt):
+        if flt or integ:
+            make_symbol= symbol_table['lit']
+            s = make_symbol()
+            s.value = flt or integ
+            yield s
+        elif func:
+            s = symbol_table['func']()
+            s.value = func
+            yield s
+        else:
+            op = symbol_table.get(operator)
+            if not op:
+                raise SyntaxError('Unknown operator')
+            yield op()
+    symbol = symbol_table['end']()
+    yield symbol
+
+
+def parse(inpt: str) -> Number:
+    global gen, token
+    gen = tokenize(inpt)
+    token = next(gen)
+    return expression()
+
+infix("+", 10)
+infix("-", 10)
+infix("*", 20)
+infix("/", 20)
+infix("^", 30)
+prefix("+", 100)
+prefix("-", 100)
+prefix('func', 200)
+
+make_symbol("lit").nud = lambda exp: exp
+make_symbol("end")
+make_symbol('(', 150)
+make_symbol(')')
+infix("<", 5); infix("<=", 5)
+infix(">", 5); infix(">=", 5)
+infix("<>", 5); infix("!=", 5); infix("=", 5)
+
+if __name__ == "__main__":
+    # args = parser.parse_args()
+    # name = 'test'
+    # print(parse(vars(args).get(name)))
+    print(parse('.1+1'))
